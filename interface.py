@@ -1,4 +1,7 @@
 import vk_api
+import json
+
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -8,6 +11,7 @@ from vkinder.config import community_token, access_token, db_url_object
 from vkinder.core import VkTools
 from vkinder.data_store import user_exists_in_db, add_user, set_offset, Last_offset
 from sqlalchemy.exc import NoResultFound
+from vkinder.keyboard import Keyboard
 
 engine = create_engine(db_url_object)
 session = Session(engine)
@@ -24,7 +28,11 @@ class BotInterface:
         self.init_offset_from_db()
         self.count = 1
         self.offset = 0
+        self.keyboard = Keyboard()
 
+    # def sender(user_id, text):
+    #     encoded_keyboard = json.dumps(Keyboard.get_keyboard(), ensure_ascii=False).encode('utf-8')
+    #     str_encoded_keyboard = str(encoded_keyboard.decode('utf-8'))
     def fetch_profiles(self):
         self.init_offset_from_db()
         profiles = self.vk_tools.search_users(self.params, self.offset, self.count)
@@ -51,9 +59,20 @@ class BotInterface:
                 set_offset(engine, self.params['id'], self.offset)
                 profiles = self.fetch_profiles()
 
-        return not_found_profiles[0]  # return first found profile
-
-
+        user = not_found_profiles[0]
+        photos_user = self.vk_tools.get_photos(user['id'])
+        user_url = f"https://vk.com/id{user['id']}"
+        attachments = []
+        for num, photo in enumerate(photos_user[:3]):
+            attachments.append(f'photo{photo["owner_id"]}_{photo["id"]}')
+            if num == 2:
+                break
+        status = self.vk_tools.get_status(user['id'])
+        self.message_send(user['id'],
+                          (f'Встречайте {user["name"]}. '
+                           f'Ссылка на профиль: {user_url},\nстатус: {status}'),
+                          attachment=','.join(attachments))
+        add_user(engine, user['id'], user['id'])
 
     def init_offset_from_db(self):
         with Session(engine) as session:
@@ -63,13 +82,17 @@ class BotInterface:
             except NoResultFound:
                 self.offset = 0
 
-    def message_send(self, user_id, message, attachment=None):
-        self.vk.method('messages.send',
-                       {'user_id': user_id,
-                        'message': message,
-                        'attachment': attachment,
-                        'random_id': get_random_id()}
-                       )
+    def message_send(self, user_id, message, attachment=None, keyboard=None):
+        post = {'user_id': user_id,
+                'message': message,
+                'attachment': attachment,
+                'random_id': get_random_id()
+                }
+
+        if keyboard is not None:
+            post['keyboard'] = keyboard.get_keyboard()
+        self.vk.method('messages.send', post)
+
     def start(self):
         self.event_handler()
 
@@ -104,33 +127,42 @@ class BotInterface:
                     self.message_send(user_id, 'Параметры города остаются без изменений.')
                 break
 
-
     def event_handler(self):
+
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                command = event.text.lower()
+                if 'payload' in event['message']:
+                    payload = json.loads(event['message']['payload'])
+                    if 'button' in payload and payload['button'] == 'поиск':
+                        self.process_search()
+                #        выполнить поиск
 
+                command = event.text.lower()
                 if command == 'привет':
+                    keyboard = Keyboard()
+                    keyboard.get_keyboard()
+                    keyboard.add_button('поиск', VkKeyboardColor.PRIMARY)
+
                     self.params = self.vk_tools.get_profile_info(event.user_id)
                     # self.change_search_params(event.user_id)
-                    self.message_send(event.user_id, f'Здравствуй {self.params["name"]}')
+                    self.message_send(event.user_id, f'Здравствуй {self.params["name"]}', keyboard)
 
                 elif command == 'поиск':
-                    user = self.process_search()
-                    photos_user = self.vk_tools.get_photos(user['id'])
-                    user_url = f"https://vk.com/id{user['id']}"
-                    attachments = []
-                    for num, photo in enumerate(photos_user[:3]):
-                        attachments.append(f'photo{photo["owner_id"]}_{photo["id"]}')
-                        if num == 2:
-                            break
-                    status = self.vk_tools.get_status(user['id'])
-                    self.message_send(event.user_id,
-                                      (f'Встречайте {user["name"]}. '
-                                       f'Ссылка на профиль: {user_url},\nстатус: {status}'),
-                                      attachment=','.join(attachments))
-                    add_user(engine, event.user_id, user['id'])
-                    self.message_send(event.user_id, 'введите - поиск')
+                    self.process_search()
+                    # user = self.process_search()
+                    # photos_user = self.vk_tools.get_photos(user['id'])
+                    # user_url = f"https://vk.com/id{user['id']}"
+                    # attachments = []
+                    # for num, photo in enumerate(photos_user[:3]):
+                    #     attachments.append(f'photo{photo["owner_id"]}_{photo["id"]}')
+                    #     if num == 2:
+                    #         break
+                    # status = self.vk_tools.get_status(user['id'])
+                    # self.message_send(event.user_id,
+                    #                   (f'Встречайте {user["name"]}. '
+                    #                    f'Ссылка на профиль: {user_url},\nстатус: {status}'),
+                    #                   attachment=','.join(attachments))
+                    # add_user(engine, event.user_id, user['id'])
 
                 elif command == 'пока':
                     self.message_send(event.user_id, 'пока')
