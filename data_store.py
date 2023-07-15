@@ -42,17 +42,6 @@ def user_exists_in_db(engine, profile_id, worksheet_id):
             Viewed.worksheet_id == worksheet_id).first()
         return True if user else False
 
-# def set_offset(engine, profile_id, new_offset):
-#     print(profile_id, new_offset)
-#     with Session(engine) as session:
-#         existing_offset = session.query(Last_offset).filter_by(profile_id=profile_id).first()
-#         if existing_offset:
-#             existing_offset.offset = new_offset
-#         else:
-#             new_entry = Last_offset(profile_id=profile_id, offset=new_offset)
-#             session.add(new_entry)
-#             session.commit()
-
 def set_offset(engine, profile_id, new_offset):
     print(profile_id, new_offset)
     session = Session(engine)  # явное открытие сессии
