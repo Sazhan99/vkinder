@@ -26,7 +26,7 @@ class BotInterface:
         self.params = {}
         self.worksheets = []
         self.init_offset_from_db()
-        self.count = 10
+        self.count = 1
         self.offset = 0
         self.keyboard = VkKeyboard(one_time=True)
 
@@ -35,11 +35,13 @@ class BotInterface:
         profiles = self.vk_tools.search_users(self.params, self.offset, self.count)
         self.offset += self.count
         set_offset(engine, self.params['id'], self.offset)
-        print(self.params['id'], self.offset)
         return profiles
 
     def process_search(self, user_id):
-        profiles = self.fetch_profiles()
+        profiles = []
+        if not profiles:
+            profiles = self.fetch_profiles()
+            print(f'в наличии: {profiles}')
 
         not_found_profiles = []  # list of profiles not in the database
 
@@ -56,7 +58,7 @@ class BotInterface:
                 set_offset(engine, self.params['id'], self.offset)
                 profiles = self.fetch_profiles()
 
-        user = not_found_profiles[0]
+        user = not_found_profiles.pop()
         photos_user = self.vk_tools.get_photos(user['id'])
         user_url = f"https://vk.com/id{user['id']}"
         attachments = []

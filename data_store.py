@@ -43,7 +43,7 @@ def user_exists_in_db(engine, profile_id, worksheet_id):
         return True if user else False
 
 def set_offset(engine, profile_id, new_offset):
-    print(profile_id, new_offset)
+    print(f'У вас {profile_id}, новый оффсет {new_offset}')
     session = Session(engine)  # явное открытие сессии
     existing_offset = session.query(Last_offset).filter_by(profile_id=profile_id).first()
     if existing_offset:
