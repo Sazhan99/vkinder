@@ -16,6 +16,7 @@ class Viewed(Base):
     profile_id = sq.Column(sq.Integer, primary_key=True)
     worksheet_id = sq.Column(sq.Integer, primary_key=True)
 
+
 class Last_offset(Base):
     __tablename__ = 'last_offset'
     profile_id = sq.Column(sq.Integer, primary_key=True)
@@ -28,11 +29,13 @@ def add_user(engine, profile_id, worksheet_id):
         session.add(to_bd)
         session.commit()
 
+
 def last_offset(engine, profile_id, offset):
     with Session(engine) as session:
         to_bd = Last_offset(profile_id=profile_id, offset=offset)
         session.add(to_bd)
         session.commit()
+
 
 def user_exists_in_db(engine, profile_id, worksheet_id):
     with Session(engine) as session:
@@ -41,6 +44,7 @@ def user_exists_in_db(engine, profile_id, worksheet_id):
             Viewed.profile_id == profile_id,
             Viewed.worksheet_id == worksheet_id).first()
         return True if user else False
+
 
 def set_offset(engine, profile_id, new_offset):
     print(f'У вас {profile_id}, новый оффсет {new_offset}')
@@ -63,4 +67,3 @@ if __name__ == '__main__':
     # res = user_exists_in_db(engine, 294898234, 873242234)
     # pes = last_offset(engine, 301668832)
     # print(pes)
-

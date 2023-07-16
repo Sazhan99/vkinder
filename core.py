@@ -15,8 +15,8 @@ class VkTools:
         return now - int(user_year)
 
     def get_city_id(self, city_name):
-        response = self.api.method('database.getCities',
-                                        {'country_id': 1, 'q': city_name, 'need_all': 0, 'count': 1})
+        response = self.api.method('database.getCities', {
+            'country_id': 1, 'q': city_name, 'need_all': 0, 'count': 1})
         cities = response['items']
         if cities:
             return cities[0]['id']
@@ -24,8 +24,7 @@ class VkTools:
             return None
 
     def get_status(self, user_id):
-        text = self.api.method('status.get',
-                        {'user_id': user_id})
+        text = self.api.method('status.get', {'user_id': user_id})
         return text['text']
 
     def get_profile_info(self, user_id):
@@ -40,13 +39,10 @@ class VkTools:
             info = {}
             print(f'error = {e}')
 
-        param = {'name': (info['first_name'] + ' ' + info['last_name']) if
-                    'first_name' in info and 'last_name' in info else None,
-                    'id': info['id'],
-                    'bdate': info['bdate'] if 'bdate' in info else None,
-                    'home_town': info['home_town'],
-                    'sex': info['sex'],
-                    'city': info['city']['id']}
+        param = {'name': (
+                info['first_name'] + ' ' + info['last_name']) if 'first_name' in info and 'last_name' in info else None,
+                 'id': info['id'], 'bdate': info['bdate'] if 'bdate' in info else None, 'home_town': info['home_town'],
+                 'sex': info['sex'], 'city': info['city']['id']}
         return param
 
     def search_users(self, params, offset, count):
@@ -63,28 +59,25 @@ class VkTools:
         age_to = age + 5
         offset = offset
 
-
         try:
-            users_found = self.api.method('users.search',
-                                    {'count': count,
-                                     'offset': offset,
-                                     'age_from': age_from,
-                                     'age_to': age_to,
-                                     'sex': sex,
-                                     'city': city,
-                                     'status': 6,
-                                     'is_closed': False,
-                                     'has_photo': 1
-                                     }
-                                    )
+            users_found = self.api.method('users.search', {
+                'count': count,
+                'offset': offset,
+                'age_from': age_from,
+                'age_to': age_to,
+                'sex': sex,
+                'city': city,
+                'status': 6,
+                'is_closed': False,
+                'has_photo': 1
+                }
+                )
             users = users_found['items']
         except KeyError:
             return []
-
         res = []
-
         for user in users:
-            if user['is_closed'] == False:
+            if user['is_closed'] is False:
                 res.append({'id': user['id'],
                             'name': user['first_name'] + ' ' + user['last_name']
                             }
@@ -92,7 +85,6 @@ class VkTools:
         return res
 
     def get_photos(self, user_id):
-
         try:
             photos = self.api.method('photos.get',
                                      {'owner_id': user_id,
@@ -103,14 +95,14 @@ class VkTools:
                                      )
 
         except ApiError as e:
-            photos ={}
+            photos = {}
             print(f'error {e}')
             return photos
 
         result = [{'owner_id': photo['owner_id'],
-                        'id': photo['id'],
-                        'likes': photo['likes']['count'],
-                        'comments': photo['comments']['count']}for photo in photos['items']]
+                   'id': photo['id'],
+                   'likes': photo['likes']['count'],
+                   'comments': photo['comments']['count']}for photo in photos['items']]
 
         result.sort(key=lambda x: x['likes'] + x['comments'] * 10, reverse=True)
 
