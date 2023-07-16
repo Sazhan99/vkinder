@@ -1,6 +1,4 @@
 import vk_api
-import json
-
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -11,7 +9,6 @@ from vkinder.config import community_token, access_token, db_url_object
 from vkinder.core import VkTools
 from vkinder.data_store import user_exists_in_db, add_user, set_offset, Last_offset
 from sqlalchemy.exc import NoResultFound
-
 
 engine = create_engine(db_url_object)
 session = Session(engine)
@@ -92,9 +89,6 @@ class BotInterface:
             post['keyboard'] = keyboard.get_keyboard()
         self.vk.method('messages.send', post)
 
-    def start(self):
-        self.event_handler()
-
     def change_search_params(self, user_id):
         params = self.vk_tools.get_profile_info(user_id)
         all_params_received = True  # флаг для отслеживания получения всех параметров
@@ -119,15 +113,19 @@ class BotInterface:
                                 self.message_send(user_id, 'Отменено изменение параметров поиска.')
                                 break
                             else:
-                                self.params['city'] = response_event.text
-                                self.message_send(user_id, 'Параметр города успешно изменен.')
+                                city_name = response_event.text
+                                city_id = self.vk_tools.get_city_id(city_name)
+                                if city_id:
+                                    self.params['city'] = city_id
+                                    self.message_send(user_id, f"Параметр города успешно изменен на: {city_name}")
+                                else:
+                                    self.message_send(user_id, f"Введенный город '{city_name}' не найден.")
                                 break
                 elif event.text.lower() == 'нет':
                     self.message_send(user_id, 'Параметры города остаются без изменений.')
                 break
 
     def event_handler(self):
-
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 command = event.text.lower()
@@ -136,28 +134,15 @@ class BotInterface:
                     self.params = self.vk_tools.get_profile_info(event.user_id)
                     self.change_search_params(event.user_id)
                     self.message_send(event.user_id, f'Здравствуй {self.params["name"]}', self.keyboard)
-
                 elif command == 'поиск':
                     if not self.params:
                         self.params = self.vk_tools.get_profile_info(event.user_id)
                     self.process_search(event.user_id)
-                    # user = self.process_search()
-                    # photos_user = self.vk_tools.get_photos(user['id'])
-                    # user_url = f"https://vk.com/id{user['id']}"
-                    # attachments = []
-                    # for num, photo in enumerate(photos_user[:3]):
-                    #     attachments.append(f'photo{photo["owner_id"]}_{photo["id"]}')
-                    #     if num == 2:
-                    #         break
-                    # status = self.vk_tools.get_status(user['id'])
-                    # self.message_send(event.user_id,
-                    #                   (f'Встречайте {user["name"]}. '
-                    #                    f'Ссылка на профиль: {user_url},\nстатус: {status}'),
-                    #                   attachment=','.join(attachments))
-                    # add_user(engine, event.user_id, user['id'])
-
                 elif command == 'пока':
                     self.message_send(event.user_id, 'пока')
+                elif command == 'другой город':
+                    self.message_send(event.user_id, 'Хотите сменить город поиска? да/нет')
+                    self.await_user_response(event.user_id)
                 else:
                     self.message_send(event.user_id, 'Неизвестная команда')
 

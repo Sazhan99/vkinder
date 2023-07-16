@@ -14,6 +14,15 @@ class VkTools:
         now = datetime.now().year
         return now - int(user_year)
 
+    def get_city_id(self, city_name):
+        response = self.api.method('database.getCities',
+                                        {'country_id': 1, 'q': city_name, 'need_all': 0, 'count': 1})
+        cities = response['items']
+        if cities:
+            return cities[0]['id']
+        else:
+            return None
+
     def get_status(self, user_id):
         text = self.api.method('status.get',
                         {'user_id': user_id})
